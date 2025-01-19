@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Defect Cutting Calculator (Multilang)</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background-color: #2f2f2f;
+      color: #fff;
+    }
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+      background-color: #3f3f3f;
+      border-radius: 5px;
+      padding: 20px;
+    }
+    .header {
+      background-color: #a3002a;
+      padding: 10px;
+      border-radius: 5px 5px 0 0;
+      font-size: 1.4em;
+      font-weight: bold;
+      text-align: center;
+    }
+    /* Перемикач мови під заголовком */
+    .lang-selector {
+      display: flex;
+      justify-content: center;
+      margin: 10px 0; /* Відступ зверху і знизу */
+    }
+    .lang-selector button {
+      background-color: #4a4a4a;
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      margin: 0 5px;
+      padding: 4px 8px;     /* Зменшено відступи */
+      cursor: pointer;
+      font-size: 0.9em;     /* Зменшено шрифт */
+    }
+    .lang-selector button:hover {
+      background-color: #666;
+    }
+
+    .content {
+      display: flex;
+      flex-wrap: wrap;
+      padding: 10px;
+    }
+    .left-panel {
+      flex: 2;
+      margin-right: 20px;
+      min-width: 240px;
+    }
+    .right-panel {
+      flex: 1;
+      background-color: #4a4a4a;
+      border-radius: 5px;
+      padding: 10px;
+      min-width: 240px;
+    }
+    @media (max-width: 768px) {
+      .left-panel, 
+      .right-panel {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 20px;
+      }
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 10px; 
+      box-sizing: border-box;
+      border-radius: 3px;
+      border: 1px solid #ccc;
+      font-size: 1em; 
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #555;
+    }
+    th {
+      background-color: #4a4a4a;
+    }
+    tr:nth-child(even) {
+      background-color: #555;
+    }
+
+    button {
+      background-color: #a3002a;
+      color: #fff;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 3px;
+      margin-right: 5px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    button:hover {
+      background-color: #c00034;
+    }
+
+    .remove-button {
+      background-color: #a3002a;
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      padding: 8px 12px;
+      cursor: pointer;
+      margin-left: 5px;
+      font-size: 1em;
+    }
+    .remove-button:hover {
+      background-color: #c00034;
+    }
+
+    .results {
+      background-color: #4a4a4a;
+      border-radius: 5px;
+      padding: 10px;
+      margin-top: 10px;
+      min-height: 50px;
+    }
+    .results pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      margin: 0;
+    }
+
+    .how-to-use {
+      font-size: 0.9em;
+      line-height: 1.5em;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 0.8em;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header" id="headerTitle">Defect Cutting Calculator</div>
+  
+  <!-- Перемикач мови посередині, з відступами -->
+  <div class="lang-selector">
+    <button onclick="updateLanguage('EN')">EN</button>
+    <button onclick="updateLanguage('UA')">UA</button>
+    <button onclick="updateLanguage('PL')">PL</button>
+  </div>
+
+  <div class="content">
+    <!-- Left Panel (Inputs + Table) -->
+    <div class="left-panel">
+      <label for="rollLength" id="labelRollLength">Roll Length:</label>
+      <input type="number" id="rollLength" placeholder="Enter roll length" />
+
+      <label for="setup" id="labelSetup">Setup:</label>
+      <input type="number" id="setup" placeholder="Enter setup value" />
+
+      <label for="buffer" id="labelBuffer">Buffer:</label>
+      <input type="number" id="buffer" placeholder="Enter buffer value" />
+
+      <table id="defectTable">
+        <thead>
+          <tr>
+            <th id="thStart">Defect Start</th>
+            <th id="thEnd">Defect End</th>
+            <th id="thName">Defect Name</th>
+            <th id="thRemove">Remove</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows will be added dynamically -->
+        </tbody>
+      </table>
+
+      <button id="btnAddRow" onclick="addRow()">Add Row</button>
+      <button id="btnCalculate" onclick="calculate()">Calculate</button>
+
+      <div class="results" id="results">
+        <pre id="resultsText">Results will appear here...</pre>
+      </div>
+    </div>
+
+    <!-- Right Panel (How to Use) -->
+    <div class="right-panel">
+      <div class="how-to-use">
+        <p><strong id="htuTitle">How to Use</strong></p>
+        <p id="htuRollLength"><strong>Roll Length:</strong> Enter the total length of the roll.</p>
+        <p id="htuSetup"><strong>Setup:</strong> Specify the setup length required for the machine.</p>
+        <p id="htuBuffer"><strong>Buffer:</strong> Enter an additional margin (from both sides) around the defect.</p>
+        <p id="htuDefect"><strong>Defect Start &amp; End:</strong> Enter defect positions (from the first pass).</p>
+        <p id="htuDefectName"><strong>Defect Name:</strong> Enter the type or short description.</p>
+        <p id="htuAddRow"><strong>Add Row:</strong> Adds a new defect line.</p>
+        <p id="htuRemove"><strong>Remove (X):</strong> Removes the corresponding defect row.</p>
+        <p id="htuCalc"><strong>Calculate:</strong> Merges close defects (&lt; 200 m) and processes in reverse order.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  &copy; DefectCalculator Demo (Multilang) by Boichenko
+</div>
+
+<script>
+  /* ====== ТРАНСЛЯЦІЇ ====== */
+  const translations = {
+    EN: {
+      headerTitle: "Defect Cutting Calculator",
+      labelRollLength: "Roll Length:",
+      labelSetup: "Setup:",
+      labelBuffer: "Buffer:",
+      thStart: "Defect Start",
+      thEnd: "Defect End",
+      thName: "Defect Name",
+      thRemove: "Remove",
+      btnAddRow: "Add Row",
+      btnCalculate: "Calculate",
+      htuTitle: "How to Use",
+      htuRollLength: "Roll Length: Enter the total length of the roll.",
+      htuSetup: "Setup: Specify the setup length required for the machine.",
+      htuBuffer: "Buffer: Enter an additional margin (from both sides) around the defect.",
+      htuDefect: "Defect Start & End: Enter defect positions (from the first pass).",
+      htuDefectName: "Defect Name: Enter the type or short description.",
+      htuAddRow: "Add Row: Adds a new defect line.",
+      htuRemove: "Remove (X): Removes the corresponding defect row.",
+      htuCalc: "Calculate: Merges close defects (< 200 m) and processes in reverse order.",
+      resultsPlaceholder: "Results will appear here...",
+      mergedTag: "(merged: distance < 200)",
+      unknownDefect: "Unknown Defect",
+      phRollLength: "Enter roll length",
+      phSetup: "Enter setup value",
+      phBuffer: "Enter buffer value",
+      phDefectStart: "Start",
+      phDefectEnd: "End",
+      phDefectName: "Defect Name"
+    },
+    UA: {
+      headerTitle: "Калькулятор вирізання дефектів",
+      labelRollLength: "Довжина рулону:",
+      labelSetup: "Заправка:",
+      labelBuffer: "Запас:",
+      thStart: "Початок дефекту",
+      thEnd: "Кінець дефекту",
+      thName: "Назва дефекту",
+      thRemove: "Видалити",
+      btnAddRow: "Додати рядок",
+      btnCalculate: "Обчислити",
+      htuTitle: "Як користуватися",
+      htuRollLength: "Довжина рулону: Введіть загальну довжину рулону.",
+      htuSetup: "Заправка: Вкажіть довжину, необхідну для заправки машини.",
+      htuBuffer: "Запас: Додаткові метри з обох сторін дефекту.",
+      htuDefect: "Початок і кінець дефекту: Вкажіть координати з першої прокрутки.",
+      htuDefectName: "Назва дефекту: Короткий опис чи тип дефекту.",
+      htuAddRow: "Додати рядок: Додає новий дефект.",
+      htuRemove: "Видалити (X): Прибирає рядок дефекту.",
+      htuCalc: "Обчислити: Зливає близькі дефекти (< 200 м) і обробляє у зворотному порядку.",
+      resultsPlaceholder: "Результати з'являться тут...",
+      mergedTag: "(об'єднано: відстань < 200)",
+      unknownDefect: "Невідомий дефект",
+      phRollLength: "Введіть довжину рулону",
+      phSetup: "Введіть заправку",
+      phBuffer: "Введіть запас",
+      phDefectStart: "Початок",
+      phDefectEnd: "Кінець",
+      phDefectName: "Назва дефекту"
+    },
+    PL: {
+      headerTitle: "Kalkulator cięcia wad",
+      labelRollLength: "Długość rolki:",
+      labelSetup: "Ustawienie:",
+      labelBuffer: "Bufor:",
+      thStart: "Początek wady",
+      thEnd: "Koniec wady",
+      thName: "Nazwa wady",
+      thRemove: "Usuń",
+      btnAddRow: "Dodaj wiersz",
+      btnCalculate: "Oblicz",
+      htuTitle: "Jak korzystać",
+      htuRollLength: "Długość rolki: Wprowadź całkowitą długość rolki.",
+      htuSetup: "Ustawienie: Określ długość potrzebną do ustawienia maszyny.",
+      htuBuffer: "Bufor: Zapewnia dodatkowy margines z obu stron wady.",
+      htuDefect: "Początek i koniec wady: Wprowadź pozycje z pierwszego przewijania.",
+      htuDefectName: "Nazwa wady: Krótki opis lub typ wady.",
+      htuAddRow: "Dodaj wiersz: Dodaje nową wadę.",
+      htuRemove: "Usuń (X): Usuwa wiersz z wadą.",
+      htuCalc: "Oblicz: Łączy bliskie wady (< 200 m) i przetwarza w odwrotnej kolejności.",
+      resultsPlaceholder: "Wyniki pojawią się tutaj...",
+      mergedTag: "(połączone: odległość < 200)",
+      unknownDefect: "Nieznana wada",
+      phRollLength: "Podaj długość rolki",
+      phSetup: "Podaj wartość ustawienia",
+      phBuffer: "Podaj wartość bufora",
+      phDefectStart: "Początek",
+      phDefectEnd: "Koniec",
+      phDefectName: "Nazwa wady"
+    }
+  };
+
+  let currentLang = 'EN';
+
+  function updateLanguage(lang) {
+    currentLang = lang;
+    const t = translations[lang];
+
+    // Заголовок
+    document.getElementById("headerTitle").textContent = t.headerTitle;
+
+    // Лейбли
+    document.getElementById("labelRollLength").textContent = t.labelRollLength;
+    document.getElementById("labelSetup").textContent = t.labelSetup;
+    document.getElementById("labelBuffer").textContent = t.labelBuffer;
+
+    // Заголовки таблиці
+    document.getElementById("thStart").textContent = t.thStart;
+    document.getElementById("thEnd").textContent = t.thEnd;
+    document.getElementById("thName").textContent = t.thName;
+    document.getElementById("thRemove").textContent = t.thRemove;
+
+    // Кнопки
+    document.getElementById("btnAddRow").textContent = t.btnAddRow;
+    document.getElementById("btnCalculate").textContent = t.btnCalculate;
+
+    // How to Use
+    document.getElementById("htuTitle").textContent = t.htuTitle;
+    document.getElementById("htuRollLength").innerHTML = "<strong>" + t.labelRollLength + "</strong> " + t.htuRollLength.split(': ')[1];
+    document.getElementById("htuSetup").innerHTML = "<strong>" + t.labelSetup + "</strong> " + t.htuSetup.split(': ')[1];
+    document.getElementById("htuBuffer").innerHTML = "<strong>" + t.labelBuffer + "</strong> " + t.htuBuffer.split(': ')[1];
+    document.getElementById("htuDefect").innerHTML = t.htuDefect;
+    document.getElementById("htuDefectName").innerHTML = t.htuDefectName;
+    document.getElementById("htuAddRow").innerHTML = "<strong>" + t.btnAddRow + ":</strong> " + t.htuAddRow.split(': ')[1];
+    document.getElementById("htuRemove").innerHTML = "<strong>" + t.thRemove + " (X):</strong> " + t.htuRemove.split(': ')[1];
+    document.getElementById("htuCalc").innerHTML = "<strong>" + t.btnCalculate + ":</strong> " + t.htuCalc.split(': ')[1];
+
+    // Placeholder-и
+    document.getElementById("rollLength").placeholder = t.phRollLength;
+    document.getElementById("setup").placeholder = t.phSetup;
+    document.getElementById("buffer").placeholder = t.phBuffer;
+
+    // Оновлюємо таблицю дефектів
+    const table = document.getElementById('defectTable').getElementsByTagName('tbody')[0];
+    const rows = table.getElementsByTagName('tr');
+    for (let i = 0; i < rows.length; i++) {
+      const cells = rows[i].getElementsByTagName('td');
+      if (cells[0].children[0]) {
+        cells[0].children[0].placeholder = t.phDefectStart;
+      }
+      if (cells[1].children[0]) {
+        cells[1].children[0].placeholder = t.phDefectEnd;
+      }
+      if (cells[2].children[0]) {
+        cells[2].children[0].placeholder = t.phDefectName;
+      }
+    }
+
+    // Results placeholder
+    document.getElementById("resultsText").textContent = t.resultsPlaceholder;
+  }
+
+  /* ======== КАЛЬКУЛЯТОР ======== */
+  const MIN_DISTANCE = 200; // < 200 => злиття
+
+  function addRow() {
+    const t = translations[currentLang];
+    const table = document.getElementById('defectTable').getElementsByTagName('tbody')[0];
+    const newRow = table.insertRow();
+
+    // Defect Start (A)
+    const cellStart = newRow.insertCell(0);
+    const inputStart = document.createElement('input');
+    inputStart.type = 'number';
+    inputStart.placeholder = t.phDefectStart;
+    cellStart.appendChild(inputStart);
+
+    // Defect End (B)
+    const cellEnd = newRow.insertCell(1);
+    const inputEnd = document.createElement('input');
+    inputEnd.type = 'number';
+    inputEnd.placeholder = t.phDefectEnd;
+    cellEnd.appendChild(inputEnd);
+
+    // Defect Name
+    const cellName = newRow.insertCell(2);
+    const inputName = document.createElement('input');
+    inputName.type = 'text';
+    inputName.placeholder = t.phDefectName;
+    cellName.appendChild(inputName);
+
+    // Remove button
+    const cellRemove = newRow.insertCell(3);
+    const btnRemove = document.createElement('button');
+    btnRemove.className = 'remove-button';
+    btnRemove.textContent = 'X';
+    btnRemove.onclick = function() {
+      removeRow(this);
+    };
+    cellRemove.appendChild(btnRemove);
+  }
+
+  function removeRow(button) {
+    const row = button.parentNode.parentNode;
+    row.parentNode.removeChild(row);
+  }
+
+  function unifyCloseDefects(defects, buffer) {
+    const t = translations[currentLang];
+    defects.sort((a, b) => a.A - b.A);
+    const mergedList = [];
+    let i = 0;
+    while (i < defects.length) {
+      let current = { ...defects[i] };
+      let hasMerged = false;
+      let j = i + 1;
+
+      while (j < defects.length) {
+        const next = defects[j];
+        const distance = next.A - current.B;
+        const needed = MIN_DISTANCE + 2 * buffer;
+        if (distance < needed) {
+          current.A = Math.min(current.A, next.A);
+          current.B = Math.max(current.B, next.B);
+          if (current.name !== next.name) {
+            current.name = current.name + ' / ' + next.name;
+          }
+          hasMerged = true;
+          j++;
+        } else {
+          break;
+        }
+      }
+
+      if (hasMerged) {
+        current.name += ' ' + t.mergedTag;
+      }
+      mergedList.push(current);
+      i = j;
+    }
+    return mergedList;
+  }
+
+  function calculate() {
+    const t = translations[currentLang];
+    const rollLength = parseFloat(document.getElementById('rollLength').value) || 0;
+    const setup = parseFloat(document.getElementById('setup').value) || 0;
+    const buffer = parseFloat(document.getElementById('buffer').value) || 0;
+
+    const table = document.getElementById('defectTable').getElementsByTagName('tbody')[0];
+    const rows = table.getElementsByTagName('tr');
+    let defects = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const cells = rows[i].getElementsByTagName('td');
+      const startValue = parseFloat(cells[0].children[0].value) || 0;
+      const endValue = parseFloat(cells[1].children[0].value) || 0;
+      let nameValue = cells[2].children[0].value.trim() || t.unknownDefect;
+
+      if (endValue > startValue) {
+        defects.push({
+          name: nameValue,
+          A: startValue,
+          B: endValue
+        });
+      }
+    }
+
+    let unifiedDefects = unifyCloseDefects(defects, buffer);
+    unifiedDefects.sort((a, b) => a.A - b.A);
+    unifiedDefects.reverse();
+
+    let L_work = rollLength - setup;
+    if (L_work < 0) {
+      L_work = 0;
+    }
+
+    let results = [];
+    for (let i = 0; i < unifiedDefects.length; i++) {
+      const defect = unifiedDefects[i];
+      const A = defect.A;
+      const B = defect.B;
+      const defectName = defect.name;
+
+      const defectLen = B - A;
+      const cutLength = defectLen + 2 * buffer;
+
+      const firstEdge = L_work - B - buffer;
+      const secondEdge = firstEdge + cutLength;
+
+      L_work -= cutLength;
+      if (L_work < 0) L_work = 0;
+
+      results.push({
+        DefectName: defectName,
+        FirstEdge: firstEdge.toFixed(2),
+        SecondEdge: secondEdge.toFixed(2),
+        CutLength: cutLength.toFixed(2)
+      });
+    }
+
+    let output = 'Results:\n\n';
+    results.forEach((r, index) => {
+      output += `DEFECT #${index + 1} [${r.DefectName}]\n`;
+      output += `  FirstEdge:  ${r.FirstEdge} m\n`;
+      output += `  SecondEdge: ${r.SecondEdge} m\n`;
+      output += `  CutLength:  ${r.CutLength} m\n\n`;
+    });
+    document.getElementById("resultsText").textContent = output || t.resultsPlaceholder;
+  }
+
+  window.addEventListener('load', () => {
+    updateLanguage('EN'); // Мова за замовчуванням
+  });
+</script>
+
+</body>
+</html>
