@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Калькулятор дефектів (Select + Edges Fix)</title>
+  <title>Калькулятор дефектів (Select + Visualization)</title>
   <style>
     body {
       margin: 0;
@@ -83,7 +83,7 @@
       border-radius: 3px;
       border: 1px solid #ccc;
       font-size: 1em;
-      color: #000; /* темний текст, бо select білий */
+      color: #000; /* Зробимо select з чорним текстом */
     }
     table {
       width: 100%;
@@ -149,6 +149,19 @@
       font-size: 0.8em;
       color: #aaa;
     }
+    /* Візуалізація */
+    #visualizationContainer {
+      background-color: #4a4a4a;
+      border-radius: 5px;
+      margin-top: 10px;
+      padding: 10px;
+      text-align: center;
+    }
+    .viz-title {
+      font-size: 1em;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -185,15 +198,24 @@
           </tr>
         </thead>
         <tbody>
-          <!-- Rows -->
+          <!-- Dynamically added rows -->
         </tbody>
       </table>
 
       <button id="btnAddRow" onclick="addRow()">Додати рядок</button>
       <button id="btnCalculate" onclick="calculate()">Обчислити</button>
 
+      <!-- Результати -->
       <div class="results" id="results">
         <pre id="resultsText">Результати з'являться тут...</pre>
+      </div>
+
+      <!-- Roll -->
+      <div id="visualizationContainer">
+        <div class="viz-title">Roll</div>
+        <svg id="vizCanvas" width="100%" height="50">
+          <!-- We will draw the spool + cutouts here -->
+        </svg>
       </div>
     </div>
 
@@ -213,11 +235,13 @@
 </div>
 
 <div class="footer">
-  &copy; 2025 DefectCalculator by Boichenko
+  &copy; 2025 DefectCalculator Visualization by Boichenko
 </div>
 
 <script>
-  /* ======= МОВНІ ПЕРЕКЛАДИ ======= */
+  /* ==========================
+   * 1) Переклади
+   * ========================== */
   const translations = {
     EN: {
       headerTitle: "Defect Cutting Calculator",
@@ -232,17 +256,14 @@
       btnCalculate: "Calculate",
       htuTitle: "How to Use",
       htuRollLength: "Roll Length: Enter the total length of the roll.",
-      htuSetup: "Setup: Specify the setup length required for the machine.",
-      htuBuffer: "Buffer: Additional margin from both sides of the defect.",
-      htuDefect: "Defect Start & End: coordinates from the first pass.",
+      htuSetup: "Setup: The length required for machine setup.",
+      htuBuffer: "Buffer: Additional margin for each defect.",
+      htuDefect: "Defect Start & End: from the first pass.",
       htuAddRow: "Add Row: Adds a new defect.",
       htuRemove: "Remove (X): Removes the defect row.",
       resultsPlaceholder: "Results will appear here...",
       mergedTag: "(merged: distance < 200)",
       unknownDefect: "Unknown Defect",
-      phRollLength: "Enter roll length",
-      phSetup: "Enter setup value",
-      phBuffer: "Enter buffer value",
       toEndLabel: "(to end)"
     },
     UA: {
@@ -266,9 +287,6 @@
       resultsPlaceholder: "Результати з'являться тут...",
       mergedTag: "(об'єднано: відстань < 200)",
       unknownDefect: "Невідомий дефект",
-      phRollLength: "Введіть довжину рулону",
-      phSetup: "Введіть заправку",
-      phBuffer: "Введіть запас",
       toEndLabel: "(до кінця)"
     },
     PL: {
@@ -284,76 +302,52 @@
       btnCalculate: "Oblicz",
       htuTitle: "Jak korzystać",
       htuRollLength: "Długość rolki: Wprowadź całkowitą długość rolki.",
-      htuSetup: "Ustawienie: Określ długość potrzebną do ustawienia maszyny.",
-      htuBuffer: "Bufor: Dodatkowe metry z obu stron wady.",
-      htuDefect: "Początek i koniec wady: pozycje z pierwszego przewijania.",
+      htuSetup: "Ustawienie: Długość do konfiguracji maszyny.",
+      htuBuffer: "Bufor: Dodatkowy margines do każdej wady.",
+      htuDefect: "Początek i koniec wady: z pierwszego przewijania.",
       htuAddRow: "Dodaj wiersz: Dodaje nową wadę.",
       htuRemove: "Usuń (X): Usuwa wiersz z wadą.",
       resultsPlaceholder: "Wyniki pojawią się tutaj...",
       mergedTag: "(połączone: odległość < 200)",
       unknownDefect: "Nieznana wada",
-      phRollLength: "Podaj długość rolki",
-      phSetup: "Podaj wartość ustawienia",
-      phBuffer: "Podaj wartość bufora",
       toEndLabel: "(do końca)"
     }
   };
+  let currentLang = "UA"; // Мова за замовчуванням
 
-  let currentLang = 'UA'; // Мова за замовчуванням - українська
-
-  /* ======== updateLanguage ======== */
-  function updateLanguage(lang) {
+  function updateLanguage(lang){
     currentLang = lang;
     const t = translations[lang];
 
-    document.getElementById("headerTitle").textContent = t.headerTitle;
-    document.getElementById("labelRollLength").textContent = t.labelRollLength;
-    document.getElementById("labelSetup").textContent = t.labelSetup;
-    document.getElementById("labelBuffer").textContent = t.labelBuffer;
+    document.getElementById("headerTitle").textContent    = t.headerTitle;
+    document.getElementById("labelRollLength").textContent= t.labelRollLength;
+    document.getElementById("labelSetup").textContent     = t.labelSetup;
+    document.getElementById("labelBuffer").textContent    = t.labelBuffer;
 
-    document.getElementById("thStart").textContent = t.thStart;
-    document.getElementById("thEnd").textContent = t.thEnd;
-    document.getElementById("thName").textContent = t.thName;
-    document.getElementById("thRemove").textContent = t.thRemove;
+    document.getElementById("thStart").textContent        = t.thStart;
+    document.getElementById("thEnd").textContent          = t.thEnd;
+    document.getElementById("thName").textContent         = t.thName;
+    document.getElementById("thRemove").textContent       = t.thRemove;
 
-    document.getElementById("btnAddRow").textContent = t.btnAddRow;
-    document.getElementById("btnCalculate").textContent = t.btnCalculate;
+    document.getElementById("btnAddRow").textContent      = t.btnAddRow;
+    document.getElementById("btnCalculate").textContent   = t.btnCalculate;
 
-    document.getElementById("htuTitle").textContent = t.htuTitle;
-    document.getElementById("htuRollLength").innerHTML = "<strong>" + t.labelRollLength + "</strong> " + t.htuRollLength.split(': ')[1];
-    document.getElementById("htuSetup").innerHTML      = "<strong>" + t.labelSetup      + "</strong> " + t.htuSetup.split(': ')[1];
-    document.getElementById("htuBuffer").innerHTML     = "<strong>" + t.labelBuffer     + "</strong> " + t.htuBuffer.split(': ')[1];
-    document.getElementById("htuDefect").innerHTML     = t.htuDefect;
-    document.getElementById("htuAddRow").innerHTML     = "<strong>" + t.btnAddRow      + ":</strong> " + t.htuAddRow.split(': ')[1];
-    document.getElementById("htuRemove").innerHTML     = "<strong>" + t.thRemove       + " (X):</strong> " + t.htuRemove.split(': ')[1];
+    document.getElementById("htuTitle").textContent       = t.htuTitle;
+    document.getElementById("htuRollLength").innerHTML    = "<strong>" + t.labelRollLength + "</strong> " + t.htuRollLength.split(': ')[1];
+    document.getElementById("htuSetup").innerHTML         = "<strong>" + t.labelSetup + "</strong> " + t.htuSetup.split(': ')[1];
+    document.getElementById("htuBuffer").innerHTML        = "<strong>" + t.labelBuffer + "</strong> " + t.htuBuffer.split(': ')[1];
+    document.getElementById("htuDefect").innerHTML        = t.htuDefect;
+    document.getElementById("htuAddRow").innerHTML        = "<strong>" + t.btnAddRow + ":</strong> " + t.htuAddRow.split(': ')[1];
+    document.getElementById("htuRemove").innerHTML        = "<strong>" + t.thRemove + " (X):</strong> " + t.htuRemove.split(': ')[1];
 
-    document.getElementById("rollLength").placeholder = t.phRollLength;
-    document.getElementById("setup").placeholder      = t.phSetup;
-    document.getElementById("buffer").placeholder     = t.phBuffer;
-
-    const table = document.getElementById('defectTable').getElementsByTagName('tbody')[0];
-    const rows = table.getElementsByTagName('tr');
-    for (let i=0; i<rows.length; i++){
-      const cells = rows[i].getElementsByTagName('td');
-      // first cell
-      if(cells[0].children[0]){
-        cells[0].children[0].placeholder = t.phDefectStart;
-      }
-      // second cell
-      if(cells[1].children[0]){
-        cells[1].children[0].placeholder = t.phDefectEnd;
-      }
-      // third cell => select
-      // (Nothing to do for select placeholders)
-    }
-
-    document.getElementById("resultsText").textContent = t.resultsPlaceholder;
+    document.getElementById("resultsText").textContent    = t.resultsPlaceholder;
   }
 
-  /* ======== Дані для випадаючого списку ======== */
+  /* ==========================
+   * 2) Дані для випадаючого списку дефектів
+   * ========================== */
   const defectOptions = [
-   "Defect",
-   "Coater wrinkle",
+    "Defect",
     "Folded",
     "Foreign Substance",
     "Non coating",
@@ -364,92 +358,89 @@
     "Water drop",
     "Winding mistake",
     "Wrinkles"
-  ];
+  ].sort(); // алфавітний порядок
 
-  /* ======== Константи =========== */
-  const MIN_DISTANCE = 200; // <200 => злиття/розширення
+  const MIN_DISTANCE = 200; // Якщо <200 — зливаємо дефекти/розширюємо
 
-  /* ======== addRow ======== */
-  function addRow() {
+  /* ==========================
+   * 3) Додавання/видалення рядків
+   * ========================== */
+  function addRow(){
     const t = translations[currentLang];
-    const table = document.getElementById('defectTable').getElementsByTagName('tbody')[0];
+    const table = document.getElementById("defectTable").getElementsByTagName("tbody")[0];
     const newRow = table.insertRow();
 
     // 1) Defect Start
     const cellStart = newRow.insertCell(0);
-    const inputStart = document.createElement('input');
-    inputStart.type = 'number';
-    inputStart.placeholder = t.phDefectStart;
+    const inputStart = document.createElement("input");
+    inputStart.type = "number";
+    inputStart.placeholder = "0"; // або t.phDefectStart
     cellStart.appendChild(inputStart);
 
     // 2) Defect End
     const cellEnd = newRow.insertCell(1);
-    const inputEnd = document.createElement('input');
-    inputEnd.type = 'number';
-    inputEnd.placeholder = t.phDefectEnd;
+    const inputEnd = document.createElement("input");
+    inputEnd.type = "number";
+    inputEnd.placeholder = "100"; // або t.phDefectEnd
     cellEnd.appendChild(inputEnd);
 
-    // 3) Defect Name (SELECT замість text)
+    // 3) Defect Name (SELECT)
     const cellName = newRow.insertCell(2);
-    const selectName = document.createElement('select');
+    const selectName = document.createElement("select");
     selectName.style.color = "#000"; // чорний текст
-
-    // Додаємо опції
-    defectOptions.forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d;
-      opt.textContent = d;
+    defectOptions.forEach(optVal =>{
+      const opt = document.createElement("option");
+      opt.value = optVal;
+      opt.textContent = optVal;
       selectName.appendChild(opt);
     });
     cellName.appendChild(selectName);
 
-    // 4) Remove button
-    const cellRemove = newRow.insertCell(3);
-    const btnRemove = document.createElement('button');
-    btnRemove.className = "remove-button";
-    btnRemove.textContent = "X";
-    btnRemove.onclick = function(){
-      removeRow(this);
-    };
-    cellRemove.appendChild(btnRemove);
+    // 4) Remove
+    const cellRem = newRow.insertCell(3);
+    const btnRemove = document.createElement("button");
+    btnRemove.className= "remove-button";
+    btnRemove.textContent= "X";
+    btnRemove.onclick = ()=> removeRow(btnRemove);
+    cellRem.appendChild(btnRemove);
   }
 
-  /* ======== removeRow ======== */
-  function removeRow(button) {
-    const row = button.parentNode.parentNode;
+  function removeRow(btn){
+    const row = btn.parentNode.parentNode;
     row.parentNode.removeChild(row);
   }
 
-  /* ======== unifyCloseDefects ======== */
-  function unifyCloseDefects(defects, buffer) {
+  /* ==========================
+   * 4) Злиття дефектів
+   * ========================== */
+  function unifyCloseDefects(defects, buffer){
     const t = translations[currentLang];
-    defects.sort((a,b) => a.A - b.A);
-
+    defects.sort((a,b)=> a.A - b.A);
     const merged = [];
     let i=0;
     while(i<defects.length){
       let current = {...defects[i]};
-      let hasMerged = false;
+      let hasMerged= false;
       let j = i+1;
       while(j<defects.length){
-        const next = defects[j];
-        const distance = next.A - current.B;
-        const needed = MIN_DISTANCE + 2*buffer;
+        const next=defects[j];
+        const distance= next.A- current.B;
+        const needed= MIN_DISTANCE + 2*buffer;
         if(distance<needed){
           // Merge
-          current.A = Math.min(current.A, next.A);
-          current.B = Math.max(current.B, next.B);
-          if(current.name!==next.name){
-            current.name += ' / ' + next.name;
+          current.A= Math.min(current.A, next.A);
+          current.B= Math.max(current.B, next.B);
+          if(current.name!== next.name){
+            current.name+= " / " + next.name;
           }
           hasMerged=true;
           j++;
-        }else{
+        } else {
           break;
         }
       }
       if(hasMerged){
-        current.name += ' ' + t.mergedTag;
+        current.name+= " " + t.mergedTag;
       }
       merged.push(current);
       i=j;
@@ -457,115 +448,160 @@
     return merged;
   }
 
-  /* ======== calculate ======== */
-  function calculate() {
+  /* ==========================
+   * 5) Основна функція calculate()
+   * ========================== */
+  function calculate(){
     const t = translations[currentLang];
-    const rollLength = parseFloat(document.getElementById('rollLength').value) || 0;
-    const setup = parseFloat(document.getElementById('setup').value) || 0;
-    const buffer = parseFloat(document.getElementById('buffer').value) || 0;
+    const rollLength = parseFloat(document.getElementById("rollLength").value)||0;
+    const setup      = parseFloat(document.getElementById("setup").value)||0;
+    const buffer     = parseFloat(document.getElementById("buffer").value)||0;
 
-    const table = document.getElementById('defectTable').getElementsByTagName('tbody')[0];
-    const rows = table.getElementsByTagName('tr');
+    const table = document.getElementById("defectTable").getElementsByTagName("tbody")[0];
+    const rows= table.getElementsByTagName("tr");
     let defects = [];
 
     // Збираємо дефекти
-    for(let i=0; i<rows.length; i++){
-      const cells = rows[i].getElementsByTagName('td');
-      // Start
-      const startVal = parseFloat(cells[0].children[0].value)||0;
-      // End
-      const endVal = parseFloat(cells[1].children[0].value)||0;
-      // Name (SELECT)
-      const nameVal = cells[2].children[0].value.trim() || t.unknownDefect;
-
-      if(endVal>startVal){
+    for(let i=0; i< rows.length; i++){
+      const cells= rows[i].getElementsByTagName("td");
+      const sVal= parseFloat(cells[0].children[0].value)||0;
+      const eVal= parseFloat(cells[1].children[0].value)||0;
+      // SELECT
+      const nameVal= cells[2].children[0].value.trim();
+      if(eVal> sVal){
         defects.push({
-          name: nameVal,
-          A: startVal,
-          B: endVal
+          A: sVal,
+          B: eVal,
+          name: nameVal || t.unknownDefect
         });
       }
     }
 
-    // 1) Зливаємо
-    let unified = unifyCloseDefects(defects, buffer);
+    // 1) Зливаємо близькі
+    let unified= unifyCloseDefects(defects, buffer);
 
-    // 2) Друга прокрутка: sort + reverse
-    unified.sort((a,b)=>a.A - b.A);
+    // 2) Друга прокрутка => sort + reverse
+    unified.sort((a,b)=> a.A - b.A);
     unified.reverse();
 
-    // 3) Обчислення
-    let L_work = rollLength - setup;
+    // 3) Обчислюємо
+    let L_work= rollLength - setup;
     if(L_work<0) L_work=0;
 
     let results=[];
-    for(let i=0; i<unified.length; i++){
-      const d = unified[i];
-      const A = d.A;
-      const B = d.B;
-      // Базова довжина
-      const baseLen = (B - A) + 2*buffer;
+    for(let i=0; i< unified.length; i++){
+      const d= unified[i];
+      const defectLen= (d.B- d.A) + 2*buffer;
+      let firstEdge= L_work - d.B - buffer;
+      let secondEdge= firstEdge+ defectLen;
 
-      // firstEdge
-      let firstEdge = L_work - B - buffer;
-      let secondEdge = firstEdge + baseLen;
-
-      // Якщо firstEdge < 0 => firstEdge=0
-      // Або якщо <200 => теж =0 (як у попередній логіці)
-      if(firstEdge<MIN_DISTANCE){
-        firstEdge=0;
+      // Якщо <200 => 0
+      if(firstEdge< MIN_DISTANCE){
+        firstEdge= 0;
       }
 
-      // Спочатку clamp, якщо secondEdge > L_work => secondEdge = L_work
-      let secondEdgeStr = "";
+      // Перевірка на "до кінця"
+      let secondEdgeStr="";
       if(secondEdge> L_work){
         secondEdge= L_work;
-        secondEdgeStr = t.toEndLabel; // "(до кінця)"
+        secondEdgeStr= t.toEndLabel;
       } else {
-        // інакше перевіряємо, чи (L_work-secondEdge)<200 => те саме
-        let distanceToEnd = L_work - secondEdge;
-        if(distanceToEnd>=0 && distanceToEnd<MIN_DISTANCE){
+        let distEnd= L_work- secondEdge;
+        if(distEnd>=0 && distEnd< MIN_DISTANCE){
           secondEdge= L_work;
-          secondEdgeStr = t.toEndLabel;
+          secondEdgeStr= t.toEndLabel;
         }
       }
 
-      // Вираховуємо реальну довжину
-      const actualCut = secondEdge - firstEdge;
-      L_work -= actualCut;
+      let actualCut= secondEdge- firstEdge;
+      L_work-= actualCut;
       if(L_work<0) L_work=0;
 
       // Округлення
-      const feRound = Math.round(firstEdge);
-      const seRound = Math.round(secondEdge);
-      const cutRound= Math.round(actualCut);
+      let fR= Math.round(firstEdge);
+      let sR= Math.round(secondEdge);
+      let cR= Math.round(actualCut);
 
-      // If secondEdgeStr is empty => show the numeric
-      if(!secondEdgeStr){
-        secondEdgeStr = seRound + " m";
-      }
+      let sEdgeTxt= secondEdgeStr || (sR+ " m");
 
       results.push({
         name: d.name,
-        firstEdge: feRound + " m",
-        secondEdge: secondEdgeStr,
-        cutLength: cutRound + " m"
+        FirstEdge: fR+ " m",
+        SecondEdge: sEdgeTxt,
+        CutLength: cR+ " m"
       });
     }
 
-    // Формуємо вивід
-    let out = "Results:\n\n";
-    results.forEach((r,idx)=>{
-      out += `DEFECT #${idx+1} [${r.name}]\n`;
-      out += `  FirstEdge:  ${r.firstEdge}\n`;
-      out += `  SecondEdge: ${r.secondEdge}\n`;
-      out += `  CutLength:  ${r.cutLength}\n\n`;
+    // Формуємо текст
+    let out= "Results:\n\n";
+    results.forEach((r, idx)=>{
+      out+= `DEFECT #${idx+1} [${r.name}]\n`;
+      out+= `  FirstEdge:  ${r.FirstEdge}\n`;
+      out+= `  SecondEdge: ${r.SecondEdge}\n`;
+      out+= `  CutLength:  ${r.CutLength}\n\n`;
     });
-    document.getElementById("resultsText").textContent = out || t.resultsPlaceholder;
+    document.getElementById("resultsText").textContent= out || t.resultsPlaceholder;
+
+    // **Малюємо візуалізацію**
+    drawVisualization(results, rollLength, setup);
   }
 
-  window.addEventListener('load', ()=>{
-    updateLanguage(currentLang); // Стартова мова (UA)
+  /* ==========================
+   * 6) Функція візуалізації
+   * ========================== */
+  function drawVisualization(results, rollLength, setup){
+    const spoolLength= rollLength - setup;
+    if(spoolLength<0) return;
+
+    const svg= document.getElementById("vizCanvas");
+    while(svg.firstChild){
+      svg.removeChild(svg.firstChild);
+    }
+
+    const W= svg.clientWidth || svg.width.baseVal.value;
+    const H= svg.clientHeight|| svg.height.baseVal.value;
+
+    let scale= (spoolLength>0)? (W/spoolLength) : 1;
+
+    // 1) Фон рулону (сірий)
+    const backRect= document.createElementNS("http://www.w3.org/2000/svg","rect");
+    backRect.setAttribute("x","0");
+    backRect.setAttribute("y","0");
+    backRect.setAttribute("width", W);
+    backRect.setAttribute("height",H);
+    backRect.setAttribute("fill","#cccccc");
+    svg.appendChild(backRect);
+
+    // 2) Червоні відрізки (results)
+    results.forEach(r=>{
+      // parse FirstEdge
+      let fE= parseInt(r.FirstEdge)||0; 
+      let sE=0;
+      // SecondEdge
+      if(r.SecondEdge.includes("(")){ 
+        // (до кінця) => sE= spoolLength
+        sE= spoolLength;
+      } else {
+        sE= parseInt(r.SecondEdge)||0;
+      }
+      if(sE< fE) return;
+
+      const cutRect= document.createElementNS("http://www.w3.org/2000/svg","rect");
+      const xRect= fE* scale;
+      const wRect= (sE- fE)* scale;
+
+      cutRect.setAttribute("x", xRect);
+      cutRect.setAttribute("y", 0);
+      cutRect.setAttribute("width", wRect);
+      cutRect.setAttribute("height", H);
+      cutRect.setAttribute("fill", "red");
+      cutRect.setAttribute("fill-opacity","0.5");
+      svg.appendChild(cutRect);
+    });
+  }
+
+  window.addEventListener("load", ()=>{
+    updateLanguage(currentLang); // Стартова мова
   });
 </script>
 
