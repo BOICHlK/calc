@@ -61,13 +61,18 @@
       padding: 10px;
       min-width: 240px;
     }
-    @media (max-width: 768px) {
-      .left-panel, .right-panel {
-        width: 100%;
-        margin-right: 0;
-        margin-bottom: 20px;
-      }
-    }
+   @media (max-width: 768px) {
+  .container {
+    max-width: 95%;
+    margin: 0 auto;
+  }
+  .defect-input {
+    width: 60px; /* на дуже маленьких екранах іще трошки вужче */
+  }
+  .defect-select {
+    width: 130px;
+  }
+}
     label {
       display: block;
       margin-bottom: 5px;
@@ -83,15 +88,12 @@
       font-size: 1em;
       color: #000;
     }
-    /* Поля для початку і кінця робимо вужче */
     .defect-input {
-      width: 100px; 
+      width: 70px; 
     }
-    /* Колонка «Назва дефекту» робимо ширшою */
     .defect-select {
-      width: 180px; /* або 250px за потреби */
+      width: 175px;
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
@@ -140,6 +142,7 @@
       padding: 10px;
       margin-top: 10px;
       min-height: 50px;
+	  margin-bottom: 10px;
     }
     .results table {
       margin-bottom: 0;
@@ -154,6 +157,12 @@
       font-size: 0.8em;
       color: #aaa;
     }
+	input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
   </style>
 </head>
 <body>
@@ -245,7 +254,8 @@
       resultsPlaceholder: "Results will appear here...",
       mergedTag: "(merged: distance < 200)",
       unknownDefect: "Unknown Defect",
-      toEndLabel: "(to end)",
+      toEndLabel: "To end",
+      fromStart: "From start",
       resultsCols: ["№", "Name", "Start", "Cut length", "End"]
     },
     UA: {
@@ -269,8 +279,9 @@
       resultsPlaceholder: "Результати з'являться тут...",
       mergedTag: "(об'єднано: відстань < 200)",
       unknownDefect: "Невідомий дефект",
-      toEndLabel: "(до кінця)",
-      resultsCols: ["Номер", "Назва", "Початок", "До вирізання", "Кінець"]
+      toEndLabel: "До кінця",
+      fromStart: "Від початку",
+      resultsCols: ["№", "Назва", "Початок", "До вирізання", "Кінець"]
     },
     PL: {
       headerTitle: "Kalkulator cięcia wad",
@@ -293,7 +304,8 @@
       resultsPlaceholder: "Wyniki pojawią się tutaj...",
       mergedTag: "(połączone: odległość < 200)",
       unknownDefect: "Nieznana wada",
-      toEndLabel: "(do końca)",
+      toEndLabel: "Do końca",
+      fromStart: "Od początku",
       resultsCols: ["Nr", "Nazwa", "Początek", "Dł. cięcia", "Koniec"]
     }
   };
@@ -330,7 +342,8 @@
 
   /* =============== Defect Options =============== */
   const defectOptions = [
-    "Coater wrinkle",
+    " ",
+	"Coater wrinkle",
     "Folded",
     "Foreign Substance",
     "Non coating",
@@ -394,7 +407,6 @@
   /* =============== unifyCloseDefects =============== */
   function unifyCloseDefects(defects, buffer){
     const t = translations[currentLang];
-    // Сортуємо
     defects.sort((a,b)=> a.A-b.A);
     const merged=[];
     let i=0;
@@ -407,7 +419,6 @@
         const distance= next.A- current.B;
         const needed= MIN_DISTANCE + 2*buffer;
         if(distance< needed){
-          // merge
           current.A= Math.min(current.A, next.A);
           current.B= Math.max(current.B, next.B);
           if(current.name!== next.name){
@@ -437,7 +448,6 @@
     const setup      = parseFloat(document.getElementById("setup").value)||0;
     const buffer     = parseFloat(document.getElementById("buffer").value)||0;
 
-    // Збираємо дефекти
     const table = document.getElementById("defectTable").getElementsByTagName("tbody")[0];
     const rows = table.getElementsByTagName("tr");
     let defects=[];
@@ -458,70 +468,89 @@
       }
     }
 
-    // 1) Зливаємо
     let unified= unifyCloseDefects(defects, buffer);
-
-    // 2) Друга прокрутка: sort+reverse
     unified.sort((a,b)=> a.A - b.A);
     unified.reverse();
     finalDefects= unified;
 
-    // 3) Створюємо початкові resultsData
     resultsData= buildResultsData(rollLength, setup, buffer, finalDefects);
     renderResultsTable();
   }
 
-  // Формуємо масив resultData з полями: firstEdge, secondEdge, cutLength, manualCut
   function buildResultsData(rollLen, setup, buffer, defArr){
     const t = translations[currentLang];
-    let L_work= rollLen- setup;
+    let L_work= rollLen - setup;
     if(L_work<0) L_work=0;
 
     let arr=[];
     for(let i=0; i<defArr.length; i++){
       const d= defArr[i];
-      let defectLen= (d.B - d.A)+ 2*buffer;
-      let firstEdge= L_work - d.B - buffer;
-      if(firstEdge< MIN_DISTANCE){
-        firstEdge=0;
-      }
-      let secondEdge= firstEdge+ defectLen;
-      let secondEdgeStr="";
-      if(secondEdge> L_work){
+      let defectLen= (d.B - d.A) + 2*buffer;
+
+      // Рахуємо "другу межу" з урахуванням наближення до кінця:
+      let secondEdge = (L_work - d.B - buffer) + defectLen;
+      if(secondEdge > L_work){
         secondEdge= L_work;
-        secondEdgeStr= t.toEndLabel;
       } else {
-        const distEnd= L_work- secondEdge;
-        if(distEnd>=0 && distEnd< MIN_DISTANCE){
+        // Якщо залишок до кінця < 200, то теж повністю
+        const distEnd= L_work - secondEdge;
+        if(distEnd >=0 && distEnd < MIN_DISTANCE){
           secondEdge= L_work;
-          secondEdgeStr= t.toEndLabel;
         }
       }
-      let actualCut= secondEdge- firstEdge;
-      L_work-= actualCut;
+
+      // Якщо дефект ближче 200м до початку => ріжемо від 0
+      let realFirstEdge= L_work - d.B - buffer;
+      let actualCut;
+      if(realFirstEdge < MIN_DISTANCE){
+        // Від 0..secondEdge
+        actualCut = secondEdge;
+      } else {
+        // Від realFirstEdge.. secondEdge
+        actualCut = secondEdge - realFirstEdge;
+      }
+      if(actualCut<0) actualCut=0;
+
+      // Віднімаємо від залишку
+      L_work -= actualCut;
       if(L_work<0) L_work=0;
 
-      let fR= Math.round(firstEdge);
-      let cR= Math.round(actualCut);
-      let sR= Math.round(secondEdge);
+      // Який "початок" показувати у таблиці
+      let displayFirstEdge= (realFirstEdge < MIN_DISTANCE)
+        ? t.fromStart
+        : (Math.round(realFirstEdge)+" m");
+
+      // Якщо secondEdge == L_work => позначаємо "до кінця"
+      let secondEdgeStr="";
+      if(secondEdge === 0){
+        // якщо secondEdge=0, то нічого не відрізали (рідкісний випадок)
+        secondEdgeStr= "0 m";
+      } else if(secondEdge=== (rollLen-setup)){
+        // Якщо ми вирізали все
+        secondEdgeStr= t.toEndLabel;
+      } else if(secondEdge=== L_work && secondEdge > 0){
+        // Якщо зрізали шматок, але не все, secondEdge=> L_work
+        secondEdgeStr= t.toEndLabel;
+      } else {
+        secondEdgeStr= Math.round(secondEdge)+" m";
+      }
 
       arr.push({
         index: i,
         name: d.name,
-        firstEdge: fR,
-        secondEdgeNum: sR,
-        secondEdgeText: (secondEdgeStr|| (sR+" m")),
-        recommendedCut: cR,
-        manualCut: cR // початково
+        firstEdge: displayFirstEdge,
+        secondEdgeNum: Math.round(secondEdge),
+        secondEdgeText: secondEdgeStr,
+        recommendedCut: Math.round(actualCut),
+        manualCut: Math.round(actualCut)
       });
     }
     return arr;
   }
 
-  // Показуємо таблицю: Номер, Назва, Початок, До вирізання(редагується), Кінець
   function renderResultsTable(){
     const t= translations[currentLang];
-    const col= t.resultsCols; // [Номер, Назва, Початок, До вирізання, Кінець]
+    const col= t.resultsCols;
 
     let html= `<table>
       <thead>
@@ -540,10 +569,10 @@
         <tr>
           <td>${idx+1}</td>
           <td>${r.name}</td>
-          <td>${r.firstEdge} m</td>
+          <td>${r.firstEdge}</td>
           <td>
-            <input type="number" 
-                   value="${r.manualCut}" 
+            <input type="number"
+                   value="${r.manualCut}"
                    min="0"
                    style="width:80px"
                    onchange="onManualCutChange(${idx}, this.value)"
@@ -557,7 +586,6 @@
     document.getElementById("results").innerHTML= html;
   }
 
-  // Зміна поля "До вирізання" -> динамічний перерахунок
   function onManualCutChange(i, newVal){
     let cutLen= parseFloat(newVal)||0;
     if(cutLen<0) cutLen=0;
@@ -567,55 +595,68 @@
     renderResultsTable();
   }
 
-  // Перерахунок з дефекту i+1
   function recalcFromIndex(i){
     const rollLen= parseFloat(document.getElementById("rollLength").value)||0;
     const setup= parseFloat(document.getElementById("setup").value)||0;
     const buffer= parseFloat(document.getElementById("buffer").value)||0;
 
-    let L_work= rollLen- setup;
+    let L_work= rollLen - setup;
     if(L_work<0) L_work=0;
-    // Спочатку "з'їдаємо" manualCut для дефектів 0..i
+
+    // Спочатку "з'їдаємо" ручні відрізи (manualCut) для дефектів 0..i
     for(let k=0; k<=i; k++){
       let c= resultsData[k].manualCut;
       L_work-= c;
       if(L_work<0) L_work=0;
     }
 
-    // Потім перерахунок i+1..end
+    // Далі перерахунок для дефектів i+1..end
     for(let k=i+1; k< resultsData.length; k++){
       const d= finalDefects[k];
-      let defLen= (d.B- d.A)+ 2*buffer;
-      let firstEdge= L_work- d.B- buffer;
-      if(firstEdge< MIN_DISTANCE){
-        firstEdge=0;
-      }
-      let secondEdge= firstEdge+ defLen;
-      let secondEdgeStr="";
-      const t= translations[currentLang];
+      let defectLen= (d.B - d.A) + 2*buffer;
+      let realFirstEdge= L_work - d.B - buffer;
+
+      // Рахуємо другу межу:
+      let secondEdge= (L_work - d.B - buffer) + defectLen;
       if(secondEdge> L_work){
         secondEdge= L_work;
-        secondEdgeStr= t.toEndLabel;
       } else {
-        const distEnd= L_work- secondEdge;
+        const distEnd= L_work - secondEdge;
         if(distEnd>=0 && distEnd< MIN_DISTANCE){
           secondEdge= L_work;
-          secondEdgeStr= t.toEndLabel;
         }
       }
-      let actualCut= secondEdge- firstEdge;
+
+      let actualCut;
+      if(realFirstEdge< MIN_DISTANCE){
+        actualCut= secondEdge; // від 0
+      } else {
+        actualCut= secondEdge - realFirstEdge;
+      }
       if(actualCut<0) actualCut=0;
-
-      // Оновлюємо resultsData
-      resultsData[k].firstEdge= Math.round(firstEdge);
-      resultsData[k].secondEdgeNum= Math.round(secondEdge);
-      resultsData[k].secondEdgeText= secondEdgeStr || (resultsData[k].secondEdgeNum+" m");
-      resultsData[k].recommendedCut= Math.round(actualCut);
-      // Reset manualCut -> recommended
-      resultsData[k].manualCut= resultsData[k].recommendedCut;
-
-      L_work-= resultsData[k].manualCut;
+      L_work-= actualCut;
       if(L_work<0) L_work=0;
+
+      let displayFirstEdge= (realFirstEdge < MIN_DISTANCE)
+        ? translations[currentLang].fromStart
+        : (Math.round(realFirstEdge)+" m");
+
+      let secondEdgeStr="";
+      if(secondEdge===0){
+        secondEdgeStr="0 m";
+      } else if(secondEdge=== (rollLen-setup)){
+        secondEdgeStr= translations[currentLang].toEndLabel;
+      } else if(secondEdge=== L_work && secondEdge>0){
+        secondEdgeStr= translations[currentLang].toEndLabel;
+      } else {
+        secondEdgeStr= Math.round(secondEdge)+" m";
+      }
+
+      resultsData[k].firstEdge= displayFirstEdge;
+      resultsData[k].secondEdgeNum= Math.round(secondEdge);
+      resultsData[k].secondEdgeText= secondEdgeStr;
+      resultsData[k].recommendedCut= Math.round(actualCut);
+      resultsData[k].manualCut= resultsData[k].recommendedCut;
     }
   }
 
